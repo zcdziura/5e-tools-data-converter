@@ -114,7 +114,6 @@ export interface OptionalfeatureProgression {
 }
 
 export interface StartingEquipment {
-	default: string[];
 	goldAlternative: string;
 	defaultData: DefaultDatum[];
 }

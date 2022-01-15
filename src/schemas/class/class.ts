@@ -1,3 +1,4 @@
+// deno-lint-ignore-file no-case-declarations
 import {
 	Class as InputClass,
 	HD,
@@ -67,12 +68,12 @@ interface SkillProficiency {
 
 interface StartingEquipment {
 	innate: EquipmentChoice[];
-	options: EquipmentChoice[];
+	options: EquipmentChoice[][];
 }
 
 interface EquipmentChoice {
 	name: string;
-	amount?: number;
+	amount: number;
 }
 
 function convertHitDie(hd: HD): HitDie {
@@ -226,4 +227,60 @@ function convertWeaponProficiencies(weaponProficiencies?: Array<WeaponClass | st
 	}
 }
 
-function convertStartingEquipment(startingEquipment: InputStartingEquipment): StartingEquipment {}
+function convertStartingEquipment(startingEquipment: InputStartingEquipment): StartingEquipment {
+	const innate: EquipmentChoice[] = [];
+	const options: EquipmentChoice[][] = [];
+
+	startingEquipment.defaultData.map(entry => {
+		if ('_' in entry) {
+			entry['_']!.forEach((entry: string | { equipmentType?: string; quantity?: number; item?: string }) => {
+				if (typeof entry === 'string') {
+					const name = entry.split('|')[0];
+					innate.push({
+						name,
+						amount: 1
+					});
+				} else {
+					const itemKey = 'equipmentType' in entry ? 'equipmentType' : 'item';
+					switch (entry[itemKey]!) {
+						case 'weaponSimple':
+							innate.push({
+								name: '$WEAPON_SIMPLE',
+								amount: entry.quantity ?? 1
+							});
+							break;
+
+						case 'weaponSimpleMelee':
+							innate.push({
+								name: '$WEAPON_SIMPLE_MELEE',
+								amount: entry.quantity ?? 1
+							});
+							break;
+
+						case 'weaponMartial':
+							innate.push({
+								name: '$WEAPON_MARTIAL',
+								amount: entry.quantity ?? 1
+							});
+							break;
+
+						default:
+							const name = entry[itemKey]!.split('|')[0];
+							innate.push({
+								name,
+								amount: entry.quantity ?? 1
+							});
+							break;
+					}
+				}
+			});
+		} else {
+			Object.values(entry).forEach(())
+		}
+	});
+
+	return {
+		innate,
+		options
+	};
+}
