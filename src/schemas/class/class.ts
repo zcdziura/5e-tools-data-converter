@@ -68,7 +68,7 @@ interface SkillProficiency {
 
 interface StartingEquipment {
 	innate: EquipmentChoice[];
-	options: EquipmentChoice[][];
+	options: EquipmentChoice[][][];
 }
 
 interface EquipmentChoice {
@@ -229,58 +229,105 @@ function convertWeaponProficiencies(weaponProficiencies?: Array<WeaponClass | st
 
 function convertStartingEquipment(startingEquipment: InputStartingEquipment): StartingEquipment {
 	const innate: EquipmentChoice[] = [];
-	const options: EquipmentChoice[][] = [];
+	const options: EquipmentChoice[][][] = [];
 
-	startingEquipment.defaultData.map(entry => {
-		if ('_' in entry) {
-			entry['_']!.forEach((entry: string | { equipmentType?: string; quantity?: number; item?: string }) => {
-				if (typeof entry === 'string') {
-					const name = entry.split('|')[0];
+	for (const entry of startingEquipment.defaultData) {
+		if (entry['_']) {
+			for (const i of entry['_']!) {
+				if (typeof i === 'string') {
+					const innateEntry = i as string;
+					const name = innateEntry.split('|')[0].toLowerCase();
 					innate.push({
 						name,
-						amount: 1
+						amount: 1,
 					});
 				} else {
-					const itemKey = 'equipmentType' in entry ? 'equipmentType' : 'item';
-					switch (entry[itemKey]!) {
+					const innateEntry = i as { equipmentType?: string; quantity?: number; item?: string };
+					const itemKey = 'equipmentType' in innateEntry ? 'equipmentType' : 'item';
+					switch (innateEntry[itemKey]!) {
 						case 'weaponSimple':
 							innate.push({
 								name: '$WEAPON_SIMPLE',
-								amount: entry.quantity ?? 1
+								amount: innateEntry.quantity ?? 1,
 							});
 							break;
 
 						case 'weaponSimpleMelee':
 							innate.push({
 								name: '$WEAPON_SIMPLE_MELEE',
-								amount: entry.quantity ?? 1
+								amount: innateEntry.quantity ?? 1,
 							});
 							break;
 
 						case 'weaponMartial':
 							innate.push({
 								name: '$WEAPON_MARTIAL',
-								amount: entry.quantity ?? 1
+								amount: innateEntry.quantity ?? 1,
 							});
 							break;
 
 						default:
-							const name = entry[itemKey]!.split('|')[0];
+							const name = innateEntry[itemKey]!.split('|')[0].toLowerCase();
 							innate.push({
 								name,
-								amount: entry.quantity ?? 1
+								amount: innateEntry.quantity ?? 1,
 							});
 							break;
 					}
 				}
-			});
+			}
 		} else {
-			Object.values(entry).forEach(())
+			const row = Object.values(entry).map(v => {
+				const values = v as Array<{ equipmentType?: string; quantity?: number; item?: string } | string>;
+				return values.map(item => {
+					if (typeof item === 'string') {
+						return {
+							name: item.split('|')[0].toLowerCase(),
+							amount: 1,
+						};
+					} else {
+						if (item.equipmentType) {
+							switch (item.equipmentType!) {
+								case 'weaponSimple':
+									return {
+										name: '$WEAPON_SIMPLE',
+										amount: item.quantity ?? 1,
+									};
+
+								case 'weaponSimpleMelee':
+									return {
+										name: '$WEAPON_SIMPLE_MELEE',
+										amount: item.quantity ?? 1,
+									};
+
+								case 'weaponMartial':
+									return {
+										name: '$WEAPON_MARTIAL',
+										amount: item.quantity ?? 1,
+									};
+
+								default:
+									return {
+										name: item.equipmentType!.split('|')[0].toLowerCase(),
+										amount: item.quantity ?? 1,
+									};
+							}
+						} else {
+							return {
+								name: item.item!.split('|')[0].toLowerCase(),
+								amount: item.quantity ?? 1,
+							};
+						}
+					}
+				});
+			});
+
+			options.push(row);
 		}
-	});
+	}
 
 	return {
 		innate,
-		options
+		options,
 	};
 }
