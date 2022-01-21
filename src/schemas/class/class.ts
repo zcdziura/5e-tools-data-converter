@@ -1,6 +1,8 @@
 // deno-lint-ignore-file no-case-declarations
 import {
 	Class as InputClass,
+	ClassFeatureClass,
+	ClassTableGroup,
 	HD,
 	StartingEquipment as InputStartingEquipment,
 	StartingProficienciesSkill,
@@ -13,6 +15,7 @@ export class Class {
 	public hitDie: HitDie;
 	public proficiencies: Proficiencies;
 	public startingEquipment: StartingEquipment;
+	public spellcasting?: Spellcasting;
 
 	constructor(inputClass: InputClass) {
 		this.name = inputClass.name;
@@ -27,6 +30,11 @@ export class Class {
 		};
 
 		this.startingEquipment = convertStartingEquipment(inputClass.startingEquipment);
+		this.spellcasting = convertSpellcasting(
+			inputClass.classFeatures,
+			inputClass.spellcastingAbility,
+			inputClass.cantripProgression
+		);
 	}
 }
 
@@ -74,6 +82,11 @@ interface StartingEquipment {
 interface EquipmentChoice {
 	name: string;
 	amount: number;
+}
+
+interface Spellcasting {
+	ability: string;
+	cantripsKnown: number[];
 }
 
 function convertHitDie(hd: HD): HitDie {
@@ -236,10 +249,13 @@ function convertStartingEquipment(startingEquipment: InputStartingEquipment): St
 			for (const i of entry['_']!) {
 				if (typeof i === 'string') {
 					const innateEntry = i as string;
-					const name = innateEntry.split('|')[0].toLowerCase();
+					const nameAndAmount = innateEntry.split('|')[0].toLowerCase();
+					const name = nameAndAmount.match(/((?:\w+'?\s?)+)/)![1].trim();
+					const amount = nameAndAmount.includes('(') ? parseInt(nameAndAmount.match(/(\d+)/)![1]) : 1;
+
 					innate.push({
 						name,
-						amount: 1,
+						amount,
 					});
 				} else {
 					const innateEntry = i as { equipmentType?: string; quantity?: number; item?: string };
@@ -267,10 +283,12 @@ function convertStartingEquipment(startingEquipment: InputStartingEquipment): St
 							break;
 
 						default:
-							const name = innateEntry[itemKey]!.split('|')[0].toLowerCase();
+							const nameAndAmount = innateEntry[itemKey]!.split('|')[0].toLowerCase();
+							const name = nameAndAmount.match(/((?:\w+'?\s?)+)/)![1].trim();
+							const amount = nameAndAmount.includes('(') ? parseInt(nameAndAmount.match(/(\d+)/)![1]) : 1;
 							innate.push({
 								name,
-								amount: innateEntry.quantity ?? 1,
+								amount: amount,
 							});
 							break;
 					}
@@ -281,9 +299,13 @@ function convertStartingEquipment(startingEquipment: InputStartingEquipment): St
 				const values = v as Array<{ equipmentType?: string; quantity?: number; item?: string } | string>;
 				return values.map(item => {
 					if (typeof item === 'string') {
+						const nameAndAmount = item.split('|')[0].toLowerCase();
+						const name = nameAndAmount.match(/((?:\w+'?\s?)+)/)![1].trim();
+						const amount = nameAndAmount.includes('(') ? parseInt(nameAndAmount.match(/(\d+)/)![1]) : 1;
+
 						return {
-							name: item.split('|')[0].toLowerCase(),
-							amount: 1,
+							name,
+							amount,
 						};
 					} else {
 						if (item.equipmentType) {
@@ -319,9 +341,13 @@ function convertStartingEquipment(startingEquipment: InputStartingEquipment): St
 									};
 							}
 						} else {
+							const nameAndAmount = item.item!.split('|')[0].toLowerCase();
+							const name = nameAndAmount.match(/((?:\w+'?\s?)+)/)![1].trim();
+							const amount = nameAndAmount.includes('(') ? parseInt(nameAndAmount.match(/(\d+)/)![1]) : 1;
+
 							return {
-								name: item.item!.split('|')[0].toLowerCase(),
-								amount: item.quantity ?? 1,
+								name,
+								amount,
 							};
 						}
 					}
@@ -335,5 +361,31 @@ function convertStartingEquipment(startingEquipment: InputStartingEquipment): St
 	return {
 		innate,
 		options,
+	};
+}
+
+function convertSpellcasting(
+	classFeatures: Array<ClassFeatureClass | string>,
+	spellcastingAbility?: string,
+	cantripProgression?: number[],
+	classTableGroups?: ClassTableGroup[]
+): Spellcasting | undefined {
+	const isSpellcastingClass =
+		classFeatures
+			.filter(feature => typeof feature === 'string')
+			.map(feature => (feature as string).split('|')[0])
+			.filter(feature => feature.toLowerCase() === 'spellcasting').length > 0;
+
+	if (!isSpellcastingClass) {
+		return undefined;
+	}
+
+	const ability = `${spellcastingAbility![0].toUpperCase()}${spellcastingAbility!.substring(1)}`;
+
+	const cantripsKnown = cantripProgression!;
+
+	return {
+		ability,
+		cantripsKnown,
 	};
 }
