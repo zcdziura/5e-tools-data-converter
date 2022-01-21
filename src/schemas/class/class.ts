@@ -306,6 +306,12 @@ function convertStartingEquipment(startingEquipment: InputStartingEquipment): St
 										amount: item.quantity ?? 1,
 									};
 
+								case 'weaponMartialMelee':
+									return {
+										name: '$WEAPON_MARTIAL_MELEE',
+										amount: item.quantity ?? 1,
+									};
+
 								default:
 									return {
 										name: item.equipmentType!.split('|')[0].toLowerCase(),
