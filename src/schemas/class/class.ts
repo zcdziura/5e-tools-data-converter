@@ -36,6 +36,7 @@ export class Class {
 			inputClass.cantripProgression,
 			inputClass.spellsKnownProgression,
 			inputClass.spellsKnownProgressionFixedByLevel,
+			inputClass.preparedSpells,
 			inputClass.classTableGroups
 		);
 	}
@@ -89,9 +90,10 @@ interface EquipmentChoice {
 
 interface Spellcasting {
 	ability: string;
-	cantripsKnown: number[];
 	spellSlots: SpellSlotsByLevel[];
+	cantripsKnown?: number[];
 	spellsKnown?: number[];
+	spellsPrepared?: SpellsPreparedFormula;
 }
 
 class SpellSlotsByLevel {
@@ -160,9 +162,15 @@ class SpellSlotsByLevel {
 				return this;
 		}
 
+		// deno-lint-ignore no-explicit-any
 		(this as any)[key] = amount;
 		return this;
 	}
+}
+
+enum SpellsPreparedFormula {
+	Full = '$SPELL_PREP_FULL_LEVEL',
+	Half = '$SPELL_PREP_HALF_LEVEL',
 }
 
 function convertHitDie(hd: HD): HitDie {
@@ -452,6 +460,7 @@ function convertSpellcasting(
 	cantripProgression?: number[],
 	spellsKnownProgression?: number[],
 	spellsKnownProgressionFixedByLevel?: SpellsKnownProgressionFixedByLevel,
+	preparedSpells?: string,
 	classTableGroups?: ClassTableGroup[]
 ): Spellcasting | undefined {
 	if (!casterProgression) {
@@ -464,30 +473,16 @@ function convertSpellcasting(
 			spellsKnownProgressionFixedByLevel!,
 			classTableGroups!
 		);
+	} else if (casterProgression.toLowerCase() === '1/2' || casterProgression.toLowerCase() === 'artificer') {
+		return convertHalfSpellcasting(
+			spellcastingAbility!,
+			classTableGroups!,
+			cantripProgression,
+			spellsKnownProgression,
+			preparedSpells
+		);
 	} else {
-		const ability = `${spellcastingAbility![0].toUpperCase()}${spellcastingAbility!.substring(1)}`;
-
-		const cantripsKnown = cantripProgression!;
-
-		const spellSlots = classTableGroups!
-			.filter(group => group?.title?.startsWith('Spell Slots'))
-			.map(group => group.rowsSpellProgression!)
-			.flatMap(spellSlots => {
-				return spellSlots.map(spellSlotsAtLevel => {
-					let slotsByLevel: SpellSlotsByLevel = new SpellSlotsByLevel();
-					for (const idx in spellSlotsAtLevel) {
-						slotsByLevel = slotsByLevel.withSpellSlot(parseInt(idx) + 1, spellSlotsAtLevel[idx]);
-					}
-
-					return slotsByLevel;
-				});
-			});
-
-		return {
-			ability,
-			cantripsKnown,
-			spellSlots,
-		};
+		return convertFullSpellcasting(spellcastingAbility!, cantripProgression!, classTableGroups!);
 	}
 }
 
@@ -517,13 +512,12 @@ function convertPactSpellcasting(
 		return [level, spellSlot, amount];
 	});
 
-	for (let i=0; i<spellSlots.length; i++) {
-		for (const [level, spellSlot, amount] of spellSlotsByLevelFixed) {
-			if (level >= (i + 1)) {
-				console.error(i+1, level, spellSlot, amount);
-				spellSlots[i] = spellSlots[i].withSpellSlot(spellSlot, amount);
-			}
-		}
+	for (const [level, spellSlot, amount] of spellSlotsByLevelFixed) {
+		spellSlots
+			.filter((_, idx) => idx + 1 >= level)
+			.forEach(slot => {
+				slot = slot.withSpellSlot(spellSlot, amount);
+			});
 	}
 
 	return {
@@ -531,5 +525,69 @@ function convertPactSpellcasting(
 		cantripsKnown,
 		spellSlots,
 		spellsKnown,
+	};
+}
+
+function convertHalfSpellcasting(
+	spellcastingAbility: string,
+	classTableGroups: ClassTableGroup[],
+	cantripProgression?: number[],
+	spellsKnownProgression?: number[],
+	preparedSpells?: string
+): Spellcasting {
+	const ability = `${spellcastingAbility.substring(0, 1).toUpperCase()}${spellcastingAbility.substring(1)}`;
+	const cantripsKnown = cantripProgression ?? undefined;
+	const spellsKnown = spellsKnownProgression ?? undefined;
+	const spellsPrepared = preparedSpells ? SpellsPreparedFormula.Half : undefined;
+
+	const spellSlots = classTableGroups
+		.filter(group => group.title?.toLowerCase() === 'spell slots per spell level')
+		.flatMap(group =>
+			group.rowsSpellProgression!.map(row => {
+				const spellSlots = new SpellSlotsByLevel();
+				for (let idx = 0; idx < row.length; idx++) {
+					spellSlots.withSpellSlot(idx + 1, row[idx]);
+				}
+
+				return spellSlots;
+			})
+		);
+
+	return {
+		ability,
+		cantripsKnown,
+		spellsKnown,
+		spellsPrepared,
+		spellSlots,
+	};
+}
+
+function convertFullSpellcasting(
+	spellcastingAbility: string,
+	cantripProgression: number[],
+	classTableGroups: ClassTableGroup[]
+): Spellcasting {
+	const ability = `${spellcastingAbility![0].toUpperCase()}${spellcastingAbility!.substring(1)}`;
+	const cantripsKnown = cantripProgression!;
+	const spellsPrepared = SpellsPreparedFormula.Full;
+	const spellSlots = classTableGroups!
+		.filter(group => group.title?.toLowerCase() === 'spell slots per spell level')
+		.map(group => group.rowsSpellProgression!)
+		.flatMap(spellSlots => {
+			return spellSlots.map(spellSlotsAtLevel => {
+				let slotsByLevel: SpellSlotsByLevel = new SpellSlotsByLevel();
+				for (const idx in spellSlotsAtLevel) {
+					slotsByLevel = slotsByLevel.withSpellSlot(parseInt(idx) + 1, spellSlotsAtLevel[idx]);
+				}
+
+				return slotsByLevel;
+			});
+		});
+
+	return {
+		ability,
+		cantripsKnown,
+		spellsPrepared,
+		spellSlots,
 	};
 }
