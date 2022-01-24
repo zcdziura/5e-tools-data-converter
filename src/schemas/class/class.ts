@@ -482,7 +482,12 @@ function convertSpellcasting(
 			preparedSpells
 		);
 	} else {
-		return convertFullSpellcasting(spellcastingAbility!, cantripProgression!, classTableGroups!);
+		return convertFullSpellcasting(
+			spellcastingAbility!,
+			cantripProgression!,
+			classTableGroups!,
+			spellsKnownProgression
+		);
 	}
 }
 
@@ -565,11 +570,13 @@ function convertHalfSpellcasting(
 function convertFullSpellcasting(
 	spellcastingAbility: string,
 	cantripProgression: number[],
-	classTableGroups: ClassTableGroup[]
+	classTableGroups: ClassTableGroup[],
+	spellsKnownProgression?: number[]
 ): Spellcasting {
 	const ability = `${spellcastingAbility![0].toUpperCase()}${spellcastingAbility!.substring(1)}`;
 	const cantripsKnown = cantripProgression!;
-	const spellsPrepared = SpellsPreparedFormula.Full;
+	const spellsPrepared = spellsKnownProgression === undefined ? SpellsPreparedFormula.Full : undefined;
+	const spellsKnown = spellsKnownProgression;
 	const spellSlots = classTableGroups!
 		.filter(group => group.title?.toLowerCase() === 'spell slots per spell level')
 		.map(group => group.rowsSpellProgression!)
@@ -587,6 +594,7 @@ function convertFullSpellcasting(
 	return {
 		ability,
 		cantripsKnown,
+		spellsKnown,
 		spellsPrepared,
 		spellSlots,
 	};
