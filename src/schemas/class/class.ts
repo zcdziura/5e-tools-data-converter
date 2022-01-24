@@ -1,9 +1,9 @@
 // deno-lint-ignore-file no-case-declarations
 import {
 	Class as InputClass,
-	ClassFeatureClass,
 	ClassTableGroup,
 	HD,
+	SpellsKnownProgressionFixedByLevel,
 	StartingEquipment as InputStartingEquipment,
 	StartingProficienciesSkill,
 	WeaponClass,
@@ -31,9 +31,12 @@ export class Class {
 
 		this.startingEquipment = convertStartingEquipment(inputClass.startingEquipment);
 		this.spellcasting = convertSpellcasting(
-			inputClass.classFeatures,
+			inputClass.casterProgression,
 			inputClass.spellcastingAbility,
-			inputClass.cantripProgression
+			inputClass.cantripProgression,
+			inputClass.spellsKnownProgression,
+			inputClass.spellsKnownProgressionFixedByLevel,
+			inputClass.classTableGroups
 		);
 	}
 }
@@ -87,6 +90,79 @@ interface EquipmentChoice {
 interface Spellcasting {
 	ability: string;
 	cantripsKnown: number[];
+	spellSlots: SpellSlotsByLevel[];
+	spellsKnown?: number[];
+}
+
+class SpellSlotsByLevel {
+	'1st': number;
+	'2nd': number;
+	'3rd': number;
+	'4th': number;
+	'5th': number;
+	'6th': number;
+	'7th': number;
+	'8th': number;
+	'9th': number;
+
+	constructor() {
+		this['1st'] = 0;
+		this['2nd'] = 0;
+		this['3rd'] = 0;
+		this['4th'] = 0;
+		this['5th'] = 0;
+		this['6th'] = 0;
+		this['7th'] = 0;
+		this['8th'] = 0;
+		this['9th'] = 0;
+	}
+
+	withSpellSlot(slot: number, amount: number): SpellSlotsByLevel {
+		let key: string;
+		switch (slot) {
+			case 1:
+				key = '1st';
+				break;
+
+			case 2:
+				key = '2nd';
+				break;
+
+			case 3:
+				key = '3rd';
+				break;
+
+			case 4:
+				key = '4th';
+				break;
+
+			case 5:
+				key = '5th';
+				break;
+
+			case 6:
+				key = '6th';
+				break;
+
+			case 7:
+				key = '7th';
+				break;
+
+			case 8:
+				key = '8th';
+				break;
+
+			case 9:
+				key = '9th';
+				break;
+
+			default:
+				return this;
+		}
+
+		(this as any)[key] = amount;
+		return this;
+	}
 }
 
 function convertHitDie(hd: HD): HitDie {
@@ -258,7 +334,11 @@ function convertStartingEquipment(startingEquipment: InputStartingEquipment): St
 						amount,
 					});
 				} else {
-					const innateEntry = i as { equipmentType?: string; quantity?: number; item?: string };
+					const innateEntry = i as {
+						equipmentType?: string;
+						quantity?: number;
+						item?: string;
+					};
 					const itemKey = 'equipmentType' in innateEntry ? 'equipmentType' : 'item';
 					switch (innateEntry[itemKey]!) {
 						case 'weaponSimple':
@@ -285,7 +365,9 @@ function convertStartingEquipment(startingEquipment: InputStartingEquipment): St
 						default:
 							const nameAndAmount = innateEntry[itemKey]!.split('|')[0].toLowerCase();
 							const name = nameAndAmount.match(/((?:\w+'?\s?)+)/)![1].trim();
-							const amount = nameAndAmount.includes('(') ? parseInt(nameAndAmount.match(/(\d+)/)![1]) : 1;
+							const amount = nameAndAmount.includes('(')
+								? parseInt(nameAndAmount.match(/(\d+)/)![1])
+								: innateEntry.quantity ?? 1;
 							innate.push({
 								name,
 								amount: amount,
@@ -365,27 +447,89 @@ function convertStartingEquipment(startingEquipment: InputStartingEquipment): St
 }
 
 function convertSpellcasting(
-	classFeatures: Array<ClassFeatureClass | string>,
+	casterProgression?: string,
 	spellcastingAbility?: string,
 	cantripProgression?: number[],
+	spellsKnownProgression?: number[],
+	spellsKnownProgressionFixedByLevel?: SpellsKnownProgressionFixedByLevel,
 	classTableGroups?: ClassTableGroup[]
 ): Spellcasting | undefined {
-	const isSpellcastingClass =
-		classFeatures
-			.filter(feature => typeof feature === 'string')
-			.map(feature => (feature as string).split('|')[0])
-			.filter(feature => feature.toLowerCase() === 'spellcasting').length > 0;
+	if (!casterProgression) {
+		return;
+	} else if (casterProgression.toLowerCase() === 'pact') {
+		return convertPactSpellcasting(
+			spellcastingAbility!,
+			cantripProgression!,
+			spellsKnownProgression!,
+			spellsKnownProgressionFixedByLevel!,
+			classTableGroups!
+		);
+	} else {
+		const ability = `${spellcastingAbility![0].toUpperCase()}${spellcastingAbility!.substring(1)}`;
 
-	if (!isSpellcastingClass) {
-		return undefined;
+		const cantripsKnown = cantripProgression!;
+
+		const spellSlots = classTableGroups!
+			.filter(group => group?.title?.startsWith('Spell Slots'))
+			.map(group => group.rowsSpellProgression!)
+			.flatMap(spellSlots => {
+				return spellSlots.map(spellSlotsAtLevel => {
+					let slotsByLevel: SpellSlotsByLevel = new SpellSlotsByLevel();
+					for (const idx in spellSlotsAtLevel) {
+						slotsByLevel = slotsByLevel.withSpellSlot(parseInt(idx) + 1, spellSlotsAtLevel[idx]);
+					}
+
+					return slotsByLevel;
+				});
+			});
+
+		return {
+			ability,
+			cantripsKnown,
+			spellSlots,
+		};
 	}
+}
 
+function convertPactSpellcasting(
+	spellcastingAbility: string,
+	cantripProgression: number[],
+	spellsKnownProgression: number[],
+	spellsKnownProgressionFixedByLevel: SpellsKnownProgressionFixedByLevel,
+	classTableGroups: ClassTableGroup[]
+): Spellcasting {
 	const ability = `${spellcastingAbility![0].toUpperCase()}${spellcastingAbility!.substring(1)}`;
-
 	const cantripsKnown = cantripProgression!;
+	const spellsKnown = spellsKnownProgression;
+
+	const spellLevelRegex = /\{\@filter (\d)\w{2}/;
+	const spellSlots = classTableGroups.flatMap(group =>
+		group.rows!.map(row => {
+			const slots = row[2] as number;
+			const spellLevel = parseInt((row[3] as string).match(spellLevelRegex)![1]);
+			return new SpellSlotsByLevel().withSpellSlot(spellLevel, slots);
+		})
+	);
+
+	const spellSlotsByLevelFixed = Object.entries(spellsKnownProgressionFixedByLevel).map(([l, e]) => {
+		const level = parseInt(l);
+		const [spellSlot, amount] = Object.entries(e).map(pair => [parseInt(pair[0]), pair[1] as number])[0];
+		return [level, spellSlot, amount];
+	});
+
+	for (let i=0; i<spellSlots.length; i++) {
+		for (const [level, spellSlot, amount] of spellSlotsByLevelFixed) {
+			if (level >= (i + 1)) {
+				console.error(i+1, level, spellSlot, amount);
+				spellSlots[i] = spellSlots[i].withSpellSlot(spellSlot, amount);
+			}
+		}
+	}
 
 	return {
 		ability,
 		cantripsKnown,
+		spellSlots,
+		spellsKnown,
 	};
 }

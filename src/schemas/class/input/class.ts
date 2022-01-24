@@ -19,7 +19,7 @@ export interface Class {
 	additionalSpells?: AdditionalSpell[];
 	basicRules?: boolean;
 	isSidekick?: boolean;
-	spellsKnownProgressionFixedByLevel?: { [key: string]: { [key: string]: number } };
+	spellsKnownProgressionFixedByLevel?: SpellsKnownProgressionFixedByLevel;
 	spellsKnownProgressionFixed?: number[];
 	spellsKnownProgressionFixedAllowLowerLevel?: boolean;
 }
@@ -140,4 +140,11 @@ export interface StartingProficienciesSkill {
 export interface WeaponClass {
 	proficiency: string;
 	optional: boolean;
+}
+
+export interface SpellsKnownProgressionFixedByLevel {
+	'11': { '6': number };
+	'13': { '7': number };
+	'15': { '8': number };
+	'17': { '9': number };
 }
