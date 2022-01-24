@@ -1,4 +1,5 @@
 // deno-lint-ignore-file no-case-declarations
+import { ClassFeature } from './input/class-feature.ts';
 import {
 	Class as InputClass,
 	ClassTableGroup,
@@ -15,9 +16,10 @@ export class Class {
 	public hitDie: HitDie;
 	public proficiencies: Proficiencies;
 	public startingEquipment: StartingEquipment;
+	public features: Feature[];
 	public spellcasting?: Spellcasting;
 
-	constructor(inputClass: InputClass) {
+	constructor(inputClass: InputClass, classFeatures: ClassFeature[]) {
 		this.name = inputClass.name;
 		this.source = inputClass?.srd ? 'SRD' : inputClass.source;
 		this.hitDie = convertHitDie(inputClass.hd);
@@ -30,6 +32,7 @@ export class Class {
 		};
 
 		this.startingEquipment = convertStartingEquipment(inputClass.startingEquipment);
+		this.features = convertClassFeatures(inputClass.name, classFeatures);
 		this.spellcasting = convertSpellcasting(
 			inputClass.casterProgression,
 			inputClass.spellcastingAbility,
@@ -172,6 +175,8 @@ enum SpellsPreparedFormula {
 	Full = '$SPELL_PREP_FULL_LEVEL',
 	Half = '$SPELL_PREP_HALF_LEVEL',
 }
+
+interface Feature {}
 
 function convertHitDie(hd: HD): HitDie {
 	switch (hd.faces) {
@@ -452,6 +457,10 @@ function convertStartingEquipment(startingEquipment: InputStartingEquipment): St
 		innate,
 		options,
 	};
+}
+
+function convertClassFeatures(className: string, classFeatures: ClassFeature[]): Feature[] {
+	return [];
 }
 
 function convertSpellcasting(
