@@ -37,10 +37,10 @@ export enum Source {
 }
 
 export interface EntryObject {
-	type: PurpleType;
+	type: EntryObjectType;
 	items?: string[];
 	name?: string;
-	entries?: Array<FluffyEntry | string>;
+	entries?: Array<SubEntryObject | string>;
 	classFeature?: string;
 	caption?: string;
 	colLabels?: string[];
@@ -49,10 +49,11 @@ export interface EntryObject {
 	count?: number;
 }
 
-export interface FluffyEntry {
-	type: FluffyType;
+export interface SubEntryObject {
+	type: EntryObjectType;
 	name?: Name;
-	entries?: Array<TentacledEntry | string>;
+	source?: string;
+	entries?: Array<SubEntryObject | string>;
 	optionalfeature?: string;
 	caption?: string;
 	colLabels?: string[];
@@ -60,40 +61,19 @@ export interface FluffyEntry {
 	rows?: Array<string[]>;
 }
 
-export interface TentacledEntry {
-	type: PurpleType;
-	name: string;
-	entries: Array<StickyEntry | string>;
-}
-
-export interface StickyEntry {
-	type: PurpleType;
-	name: string;
-	source: string;
-	page: number;
-	entries: string[];
-}
-
-export enum PurpleType {
+export enum EntryObjectType {
+	AbilityAttackMod = 'abilityAttackMod',
 	AbilityDc = 'abilityDc',
 	Entries = 'entries',
 	Inset = 'inset',
 	List = 'list',
 	Options = 'options',
 	RefClassFeature = 'refClassFeature',
+	RefOptionalfeature = 'refOptionalfeature',
 	Table = 'table',
 }
 
 export enum Name {
 	Spell = 'Spell',
 	TheMagicOfArtifice = 'The Magic of Artifice',
-}
-
-export enum FluffyType {
-	AbilityAttackMod = 'abilityAttackMod',
-	AbilityDc = 'abilityDc',
-	Entries = 'entries',
-	Inset = 'inset',
-	RefOptionalfeature = 'refOptionalfeature',
-	Table = 'table',
 }
