@@ -1,5 +1,5 @@
 // deno-lint-ignore-file no-case-declarations
-import { ClassFeature } from './input/class-feature.ts';
+import { ClassFeature, EntryObjectType, Source } from './input/class-feature.ts';
 import {
 	Class as InputClass,
 	ClassTableGroup,
@@ -9,6 +9,8 @@ import {
 	StartingProficienciesSkill,
 	WeaponClass,
 } from './input/class.ts';
+
+const SPECIAL_HYPERTEXT_REGEX = /\{\@\w+\s([\s'\-\/0-9A-Za-z]+)(?:\|(?:[\s!&'\-.=/0-9:;A-Z\[\]a-z\|])+)?\}/g;
 
 export class Class {
 	public name: string;
@@ -176,7 +178,13 @@ enum SpellsPreparedFormula {
 	Half = '$SPELL_PREP_HALF_LEVEL',
 }
 
-interface Feature {}
+interface Feature {
+	name: string;
+	level: number;
+	source: string;
+	description: string;
+	optional?: boolean;
+}
 
 function convertHitDie(hd: HD): HitDie {
 	switch (hd.faces) {
@@ -459,8 +467,114 @@ function convertStartingEquipment(startingEquipment: InputStartingEquipment): St
 	};
 }
 
-function convertClassFeatures(className: string, classFeatures: ClassFeature[]): Feature[] {
-	return [];
+function convertClassFeatures(_className: string, classFeatures: ClassFeature[]): Feature[] {
+	return classFeatures.map(feature => {
+		const source = feature.srd ? 'SRD' : feature.source === Source.Tce ? 'TCE' : 'PHB';
+		const description = feature.entries
+			.filter(entry => {
+				if (typeof entry !== 'string') {
+					return (
+						entry.type !== EntryObjectType.Inset &&
+						entry.type !== EntryObjectType.AbilityDc &&
+						entry.type !== EntryObjectType.AbilityAttackMod &&
+						entry.type !== EntryObjectType.RefClassFeature
+					);
+				}
+
+				return entry.substring(entry.length - 2) !== '}}';
+			})
+			.map(entry => {
+				if (typeof entry === 'string') {
+					return entry.replaceAll('\u2014', '&mdash;').replaceAll(SPECIAL_HYPERTEXT_REGEX, '$1');
+				} else if (entry.type === EntryObjectType.List) {
+					return entry
+						.items!.map((item, idx) => `${idx + 1}. ${item}`)
+						.join('\n')
+						.replaceAll('\u2014', '&mdash;')
+						.replaceAll(SPECIAL_HYPERTEXT_REGEX, '$1')
+						.trim();
+				} else if (entry.type === EntryObjectType.Table) {
+					const tableCaption = `#### ${entry.caption!}`;
+					const tabelHeader = `| ${entry.colLabels!.join(' | ')} |`;
+					const tableHeaderSeparator = `|${entry.colLabels!.map(_ => ':--:').join('|')}|`;
+					const tableBody = entry
+						.rows!.map(
+							row =>
+								`| ${row
+									.map(text =>
+										text.replaceAll('\u2014', '&mdash;').replaceAll(SPECIAL_HYPERTEXT_REGEX, '$1')
+									)
+									.join(' | ')} |`
+						)
+						.join('\n');
+
+					return `${tableCaption}\n${tabelHeader}\n${tableHeaderSeparator}\n${tableBody}`;
+				} else {
+					const title = `### ${entry.name!}`;
+					const description = entry.entries
+						?.filter(subentry => {
+							if (typeof subentry === 'string') {
+								return true;
+							} else {
+								return (
+									subentry.type !== EntryObjectType.Inset &&
+									subentry.type !== EntryObjectType.AbilityDc &&
+									subentry.type !== EntryObjectType.AbilityAttackMod &&
+									subentry.type !== EntryObjectType.RefClassFeature
+								);
+							}
+						})
+						.map(subentry => {
+							if (typeof subentry === 'string') {
+								return subentry
+									.replaceAll('\u2014', '&mdash;')
+									.replaceAll(SPECIAL_HYPERTEXT_REGEX, '$1')
+									.trim();
+							}
+
+							if (subentry.type === EntryObjectType.Table) {
+								const _columnLengths = [subentry.colLabels!]
+									.concat(subentry.rows!)
+									.map(entry => entry.map(e => e.length + 2))
+									.reduce((acc, cur) => {
+										const array = [];
+										for (let i = 0; i < acc.length; i++) {
+											if (cur[i] > acc[i]) {
+												array.push(cur[i]);
+											} else {
+												array.push(acc[i]);
+											}
+										}
+
+										return array;
+									});
+
+								const tableCaption = `#### ${subentry.caption!}`;
+								const tabelHeader = `| ${subentry.colLabels!.join(' | ')} |`;
+								const tableHeaderSeparator = `|${subentry.colLabels!.map(_ => ':--:').join('|')}|`;
+								const tableBody = subentry.rows!.map(row => `| ${row.join(' | ')} |`).join('\n');
+
+								return `${tableCaption}\n${tabelHeader}\n${tableHeaderSeparator}\n${tableBody}`;
+							}
+
+							return 'TODO!!';
+						})
+						.join('\n\n');
+
+					return `${title}\n\n${description}`;
+				}
+			})
+			.join('\n\n')
+			.trim();
+
+		return {
+			name: feature.name,
+			level: feature.level,
+			source,
+			description,
+			optional: feature.isClassFeatureVariant,
+		};
+	});
 }
 
 function convertSpellcasting(

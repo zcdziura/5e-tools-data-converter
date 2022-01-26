@@ -1,4 +1,4 @@
-import { walk } from 'https://deno.land/std@0.120.0/fs/mod.ts';
+import { walk } from 'https://deno.land/std@0.122.0/fs/mod.ts';
 
 import { InputClassSchema } from './schemas/class/input/schema.ts';
 import { Class } from './schemas/class/class.ts';
@@ -11,7 +11,7 @@ for await (const entry of walk(classesDirectory)) {
 	if (entry.isFile) {
 		const schema: InputClassSchema = JSON.parse(await Deno.readTextFile(entry.path));
 		const classFeatures = schema.classFeature.filter(
-			feature => feature.source !== Source.UAModifyingClasses && feature.source !== Source.UATheRangerRevised
+			feature => feature.source === Source.Phb || feature.source === Source.Tce
 		);
 
 		schema.class

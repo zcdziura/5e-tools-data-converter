@@ -32,12 +32,13 @@ export enum ClassName {
 export enum Source {
 	Phb = 'PHB',
 	Tce = 'TCE',
+	UAClassFeatureVariants = 'UAClassFeatureVariants',
 	UAModifyingClasses = 'UAModifyingClasses',
 	UATheRangerRevised = 'UATheRangerRevised',
 }
 
 export interface EntryObject {
-	type: EntryObjectType;
+	type?: EntryObjectType;
 	items?: string[];
 	name?: string;
 	entries?: Array<SubEntryObject | string>;
