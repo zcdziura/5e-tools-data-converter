@@ -1,5 +1,6 @@
 // deno-lint-ignore-file no-case-declarations
-import { ClassFeature, EntryObjectType, Source } from './input/class-feature.ts';
+import { OptionalFeature } from '../optional-features/optional-feature.ts';
+import { ClassFeature, EntryObjectType, Source, SubEntryObject } from './input/class-feature.ts';
 import {
 	Class as InputClass,
 	ClassTableGroup,
@@ -21,7 +22,7 @@ export class Class {
 	public features: Feature[];
 	public spellcasting?: Spellcasting;
 
-	constructor(inputClass: InputClass, classFeatures: ClassFeature[]) {
+	constructor(inputClass: InputClass, classFeatures: ClassFeature[], optionalFeatures: Map<string, OptionalFeature>) {
 		this.name = inputClass.name;
 		this.source = inputClass?.srd ? 'SRD' : inputClass.source;
 		this.hitDie = convertHitDie(inputClass.hd);
@@ -34,7 +35,7 @@ export class Class {
 		};
 
 		this.startingEquipment = convertStartingEquipment(inputClass.startingEquipment);
-		this.features = convertClassFeatures(inputClass.name, classFeatures);
+		this.features = convertClassFeatures(inputClass.name, classFeatures, optionalFeatures);
 		this.spellcasting = convertSpellcasting(
 			inputClass.casterProgression,
 			inputClass.spellcastingAbility,
@@ -467,7 +468,11 @@ function convertStartingEquipment(startingEquipment: InputStartingEquipment): St
 	};
 }
 
-function convertClassFeatures(_className: string, classFeatures: ClassFeature[]): Feature[] {
+function convertClassFeatures(
+	_className: string,
+	classFeatures: ClassFeature[],
+	optionalFeatures: Map<string, OptionalFeature>
+): Feature[] {
 	return classFeatures.map(feature => {
 		const source = feature.srd ? 'SRD' : feature.source === Source.Tce ? 'TCE' : 'PHB';
 		const description = feature.entries
@@ -481,7 +486,7 @@ function convertClassFeatures(_className: string, classFeatures: ClassFeature[])
 					);
 				}
 
-				return entry.substring(entry.length - 2) !== '}}';
+				return entry.substring(0, 2) !== '{@' && entry.substring(entry.length - 2) !== '}}';
 			})
 			.map(entry => {
 				if (typeof entry === 'string') {
@@ -509,6 +514,30 @@ function convertClassFeatures(_className: string, classFeatures: ClassFeature[])
 						.join('\n');
 
 					return `${tableCaption}\n${tabelHeader}\n${tableHeaderSeparator}\n${tableBody}`;
+				} else if (entry.type === EntryObjectType.Options) {
+					return entry
+						.entries!.filter(entry => {
+							const [_, source] = (entry as SubEntryObject).optionalfeature!.split('|');
+							return !source || source.substring(0, 2).toLowerCase() !== 'ua';
+						})
+						.map(entry => {
+							const name = (entry as SubEntryObject).optionalfeature!.split('|')[0];
+							const description = optionalFeatures
+								.get(name)!
+								.entries.map(e => {
+									if (typeof e === 'string') {
+										return e;
+									} else {
+										return 'TODO!!';
+									}
+								})
+								.join('\n')
+								.replaceAll('\u2014', '&mdash;')
+								.replaceAll(SPECIAL_HYPERTEXT_REGEX, '$1');
+
+							return `**${name}.** ${description}`;
+						})
+						.join('\n');
 				} else {
 					const title = `### ${entry.name!}`;
 					const description = entry.entries
