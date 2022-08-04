@@ -1,4 +1,4 @@
-import { walk } from 'https://deno.land/std@0.122.0/fs/mod.ts';
+import { walk } from 'https://deno.land/std@0.150.0/fs/mod.ts';
 
 import { InputClassSchema } from './schemas/class/input/schema.ts';
 import { Class } from './schemas/class/class.ts';
