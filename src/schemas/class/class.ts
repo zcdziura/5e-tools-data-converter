@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-case-declarations
 import { OptionalFeature } from '../optional-features/optional-feature.ts';
-import { ClassFeature, EntryObjectType, Source, SubEntryObject } from './input/class-feature.ts';
+import { ClassFeature, EntryObject, EntryObjectType, Source, SubEntryObject } from './input/class-feature.ts';
 import {
 	Class as InputClass,
 	ClassTableGroup,
@@ -482,7 +482,8 @@ function convertClassFeatures(
 						entry.type !== EntryObjectType.Inset &&
 						entry.type !== EntryObjectType.AbilityDc &&
 						entry.type !== EntryObjectType.AbilityAttackMod &&
-						entry.type !== EntryObjectType.RefClassFeature
+						entry.type !== EntryObjectType.RefClassFeature &&
+						entry.type !== EntryObjectType.Options
 					);
 				}
 
@@ -562,21 +563,21 @@ function convertClassFeatures(
 							}
 
 							if (subentry.type === EntryObjectType.Table) {
-								const _columnLengths = [subentry.colLabels!]
-									.concat(subentry.rows!)
-									.map(entry => entry.map(e => e.length + 2))
-									.reduce((acc, cur) => {
-										const array = [];
-										for (let i = 0; i < acc.length; i++) {
-											if (cur[i] > acc[i]) {
-												array.push(cur[i]);
-											} else {
-												array.push(acc[i]);
-											}
-										}
+								// const _columnLengths = [subentry.colLabels!]
+								// 	.concat(subentry.rows!)
+								// 	.map(entry => entry.map(e => e.length + 2))
+								// 	.reduce((acc, cur) => {
+								// 		const array = [];
+								// 		for (let i = 0; i < acc.length; i++) {
+								// 			if (cur[i] > acc[i]) {
+								// 				array.push(cur[i]);
+								// 			} else {
+								// 				array.push(acc[i]);
+								// 			}
+								// 		}
 
-										return array;
-									});
+								// 		return array;
+								// 	});
 
 								const tableCaption = `#### ${subentry.caption!}`;
 								const tabelHeader = `| ${subentry.colLabels!.join(' | ')} |`;
@@ -595,6 +596,36 @@ function convertClassFeatures(
 			})
 			.join('\n\n')
 			.trim();
+
+		const options = feature.entries
+			.filter(entry => typeof entry !== 'string' && entry.type === EntryObjectType.Options)
+			.flatMap((entry: EntryObject) => {
+				return entry
+					.entries!.filter(entry => {
+						const [_, source] = (entry as SubEntryObject).optionalfeature!.split('|');
+						return !source || source.substring(0, 2).toLowerCase() !== 'ua';
+					})
+					.map((entry: SubEntryObject) => {
+						const name = (entry as SubEntryObject).optionalfeature!.split('|')[0];
+						const description = optionalFeatures
+							.get(name)!
+							.entries.map(e => {
+								if (typeof e === 'string') {
+									return e;
+								} else {
+									return 'TODO!!';
+								}
+							})
+							.join('\n')
+							.replaceAll('\u2014', '&mdash;')
+							.replaceAll(SPECIAL_HYPERTEXT_REGEX, '$1');
+
+						return {
+							name,
+							description,
+						};
+					});
+			});
 
 		return {
 			name: feature.name,
