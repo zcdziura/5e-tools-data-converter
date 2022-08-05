@@ -1,14 +1,19 @@
 import { walk } from 'https://deno.land/std@0.150.0/fs/mod.ts';
 
-import { InputClassSchema } from './schemas/class/input/schema.ts';
 import { Class } from './schemas/class/class.ts';
 import { Source } from './schemas/class/input/class-feature.ts';
+import { InputClassSchema } from './schemas/class/input/schema.ts';
 import { OptionalFeature } from './schemas/optional-features/optional-feature.ts';
 
 const classesDirectory: string = Deno.args[0];
 const optionalFeaturesFile: string = Deno.args[1];
 const classes: Class[] = [];
-const optionalFeatures: Map<string, OptionalFeature> = new Map();
+
+const optionalFeatures: Map<string, OptionalFeature> = (
+	JSON.parse(await Deno.readTextFile(optionalFeaturesFile)) as { optionalfeature: OptionalFeature[] }
+).optionalfeature
+	.filter(feature => feature.source.substring(0, 2).toLowerCase() !== 'ua')
+	.reduce((optionalFeatures, feature) => optionalFeatures.set(feature.name, feature), new Map());
 
 (JSON.parse(await Deno.readTextFile(optionalFeaturesFile)) as { optionalfeature: OptionalFeature[] }).optionalfeature
 	.filter(feature => feature.source.substring(0, 2).toLowerCase() !== 'ua')
