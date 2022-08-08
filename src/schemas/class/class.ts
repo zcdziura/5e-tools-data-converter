@@ -185,6 +185,12 @@ interface Feature {
 	source: string;
 	description: string;
 	optional?: boolean;
+	options?: FeatureOption[];
+}
+
+interface FeatureOption {
+	name: string;
+	description: string;
 }
 
 function convertHitDie(hd: HD): HitDie {
@@ -599,12 +605,14 @@ function convertClassFeatures(
 
 		const options = feature.entries
 			.filter(entry => typeof entry !== 'string' && entry.type === EntryObjectType.Options)
+			.map((entry: string | EntryObject) => entry as EntryObject)
 			.flatMap((entry: EntryObject) => {
 				return entry
 					.entries!.filter(entry => {
 						const [_, source] = (entry as SubEntryObject).optionalfeature!.split('|');
 						return !source || source.substring(0, 2).toLowerCase() !== 'ua';
 					})
+					.map((entry: string | SubEntryObject) => entry as SubEntryObject)
 					.map((entry: SubEntryObject) => {
 						const name = (entry as SubEntryObject).optionalfeature!.split('|')[0];
 						const description = optionalFeatures
@@ -633,6 +641,7 @@ function convertClassFeatures(
 			source,
 			description,
 			optional: feature.isClassFeatureVariant,
+			options: options.length > 0 ? options : undefined,
 		};
 	});
 }
