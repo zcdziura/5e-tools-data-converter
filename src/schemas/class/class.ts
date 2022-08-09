@@ -1,15 +1,16 @@
 // deno-lint-ignore-file no-case-declarations
-import { OptionalFeature } from '../optional-features/optional-feature.ts';
-import { ClassFeature, EntryObject, EntryObjectType, Source, SubEntryObject } from './input/class-feature.ts';
+import { OptionalFeature as InputOptionalFeature } from '../optional-features/optional-feature';
+import { ClassFeature, EntryObject, EntryObjectType, Source, SubEntryObject } from './input/class-feature';
 import {
 	Class as InputClass,
 	ClassTableGroup,
 	HD,
+	OptionalfeatureProgression,
 	SpellsKnownProgressionFixedByLevel,
 	StartingEquipment as InputStartingEquipment,
 	StartingProficienciesSkill,
 	WeaponClass,
-} from './input/class.ts';
+} from './input/class';
 
 const SPECIAL_HYPERTEXT_REGEX = /\{\@\w+\s([\s'\-\/0-9A-Za-z]+)(?:\|(?:[\s!&'\-.=/0-9:;A-Z\[\]a-z\|])+)?\}/g;
 
@@ -21,8 +22,13 @@ export class Class {
 	public startingEquipment: StartingEquipment;
 	public features: Feature[];
 	public spellcasting?: Spellcasting;
+	public optionalFeatures?: OptionalFeature[];
 
-	constructor(inputClass: InputClass, classFeatures: ClassFeature[], optionalFeatures: Map<string, OptionalFeature>) {
+	constructor(
+		inputClass: InputClass,
+		classFeatures: ClassFeature[],
+		optionalFeatures: Map<string, InputOptionalFeature>
+	) {
 		this.name = inputClass.name;
 		this.source = inputClass?.srd ? 'SRD' : inputClass.source;
 		this.hitDie = convertHitDie(inputClass.hd);
@@ -45,6 +51,11 @@ export class Class {
 			inputClass.preparedSpells,
 			inputClass.classTableGroups
 		);
+
+		const optionalClassFeatures = convertOptionalFeatures(optionalFeatures, inputClass.optionalfeatureProgression);
+		if (!!optionalFeatures) {
+			this.optionalFeatures = optionalClassFeatures;
+		}
 	}
 }
 
@@ -191,6 +202,19 @@ interface Feature {
 interface FeatureOption {
 	name: string;
 	description: string;
+}
+
+interface OptionalFeature {
+	name: string;
+	source: Source;
+	progression: number[];
+	options: OptionalFeatureOption[];
+}
+
+interface OptionalFeatureOption {
+	name: string;
+	description: string;
+	level?: number;
 }
 
 function convertHitDie(hd: HD): HitDie {
@@ -477,7 +501,7 @@ function convertStartingEquipment(startingEquipment: InputStartingEquipment): St
 function convertClassFeatures(
 	_className: string,
 	classFeatures: ClassFeature[],
-	optionalFeatures: Map<string, OptionalFeature>
+	optionalFeatures: Map<string, InputOptionalFeature>
 ): Feature[] {
 	return classFeatures.map(feature => {
 		const source = feature.srd ? 'SRD' : feature.source === Source.Tce ? 'TCE' : 'PHB';
@@ -790,4 +814,20 @@ function convertFullSpellcasting(
 		spellsPrepared,
 		spellSlots,
 	};
+}
+
+function convertOptionalFeatures(
+	optionalFeatures: Map<string, InputOptionalFeature>,
+	optionalFeatureProgression?: OptionalfeatureProgression[]
+): OptionalFeature[] | undefined {
+	if (!!optionalFeatureProgression) {
+		optionalFeatureProgression.map(progression => {
+			const featureType = progression.featureType[0];
+			Array.from(optionalFeatures.values()).map(value => {
+				const source = value?.srd ? 'SRD' : value.source;
+			});
+		});
+	} else {
+		return undefined;
+	}
 }
