@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-case-declarations
-import { OptionalFeature as InputOptionalFeature } from '../optional-features/optional-feature';
-import { ClassFeature, EntryObject, EntryObjectType, Source, SubEntryObject } from './input/class-feature';
+import { OptionalFeature as InputOptionalFeature } from '../optional-features/optional-feature.ts';
+import { ClassFeature, EntryObject, EntryObjectType, Source, SubEntryObject } from './input/class-feature.ts';
 import {
 	Class as InputClass,
 	ClassTableGroup,
@@ -10,7 +10,7 @@ import {
 	StartingEquipment as InputStartingEquipment,
 	StartingProficienciesSkill,
 	WeaponClass,
-} from './input/class';
+} from './input/class.ts';
 
 const SPECIAL_HYPERTEXT_REGEX = /\{\@\w+\s([\s'\-\/0-9A-Za-z]+)(?:\|(?:[\s!&'\-.=/0-9:;A-Z\[\]a-z\|])+)?\}/g;
 
